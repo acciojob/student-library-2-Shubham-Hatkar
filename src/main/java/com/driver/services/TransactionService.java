@@ -1,7 +1,6 @@
 package com.driver.services;
 
-import com.driver.models.Transaction;
-import com.driver.models.TransactionStatus;
+import com.driver.models.*;
 import com.driver.repositories.BookRepository;
 import com.driver.repositories.CardRepository;
 import com.driver.repositories.TransactionRepository;
@@ -32,7 +31,8 @@ public class TransactionService {
     @Value("${books.fine.per_day}")
     public int fine_per_day;
 
-    public String issueBook(int cardId, int bookId) throws Exception {
+    public String issueBook(int cardId, int bookId) throws Exception
+    {
         //check whether bookId and cardId already exist
         //conditions required for successful transaction of issue book:
         //1. book is present and available
@@ -45,7 +45,41 @@ public class TransactionService {
 
         //Note that the error message should match exactly in all cases
 
-       return null; //return transactionId instead
+        Book book = bookRepository5.findById(bookId).get();
+        Card card = cardRepository5.findById(cardId).get();
+
+        if(book == null || !book.isAvailable())
+        {
+            throw new Exception("Book is either unavailable or not present");
+        }
+        if(card == null || card.getCardStatus() != CardStatus.ACTIVATED)
+        {
+            throw new Exception("Card is invalid");
+        }
+        if(card.getBooks().size() >= max_allowed_books)
+        {
+            throw new Exception("Book limit has reached for this card");
+        }
+
+        Transaction transaction = new Transaction();
+        transaction.setBook(book);
+        transaction.setCard(card);
+        transaction.setIssueOperation(true);
+
+        book.setCard(card);
+        book.setAvailable(false);
+
+        List<Book> books = card.getBooks();
+        books.add(book);
+        card.setBooks(books);
+
+        cardRepository5.save(card);
+        bookRepository5.save(book);
+
+        transaction.setTransactionStatus(TransactionStatus.SUCCESSFUL);
+        transactionRepository5.save(transaction);
+
+       return transaction.getTransactionId(); //return transactionId instead
     }
 
     public Transaction returnBook(int cardId, int bookId) throws Exception{
